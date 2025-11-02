@@ -1,0 +1,7 @@
+{
+    "include": ["."],
+    "extraPaths": ["./cs336-basics"],
+    "venvPath": ".",
+    "venv": ".venv"
+}
+  
