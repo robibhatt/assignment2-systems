@@ -3,13 +3,14 @@ import yaml
 from cs336_basics.model import BasicsTransformerLM
 from cs336_basics.nn_utils import cross_entropy
 import torch
-from torch import Tensor
+from torch import Tensor, dtype
 from jaxtyping import Int
 import time
 import statistics
 from datetime import datetime
 import os
 import shutil
+import torch.cuda.nvtx as nvtx
 
 
 @dataclass
@@ -103,7 +104,7 @@ def run_benchmark(config: BenchmarkConfig, out_file: str):
         num_layers=config.model_config.num_layers,
         num_heads=config.model_config.num_heads,
         d_ff=config.model_config.d_ff,
-        rope_theta=config.model_config.rope_theta,
+        rope_theta=config.model_config.rope_theta
     )
     print('created model')
 
@@ -113,74 +114,79 @@ def run_benchmark(config: BenchmarkConfig, out_file: str):
     lm.train()
     print('put model in training mode')
 
-    # --- Warm-up ---
-    for _ in range(config.warmup_steps):
-        print('started warm up step')
-        for p in lm.parameters():
-            if p.grad is not None:
-                p.grad.zero_()
-        print('zeroed out gradients')
-        x, y = random_batch(config, device)
-        print('grabbed a batch')
+    # --- Warm-up (wrapped for GUI filtering) ---
+    with nvtx.range("WARMUP"):
+        for _ in range(config.warmup_steps):
+            print('started warm up step')
+            for p in lm.parameters():
+                if p.grad is not None:
+                    p.grad.zero_()
+            print('zeroed out gradients')
+            x, y = random_batch(config, device)
+            print('grabbed a batch')
 
-        # forward (build graph only if we plan to backprop)
-        grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
-        with grad_ctx:
-            _ = lm(x)
-        print('forward pass')
+            grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
+            with grad_ctx:
+                with nvtx.range("FORWARD (warmup)"):
+                    logits = lm(x)
+            print('forward pass')
 
-        if config.include_backward:
-            loss = cross_entropy(inputs=_, targets=y)
-            loss.backward()
-            print('backward pass')
-        print('did a warm-up step')
+            if config.include_backward:
+                loss = cross_entropy(inputs=logits, targets=y)
+                with nvtx.range("BACKWARD (warmup)"):
+                    loss.backward()
+                print('backward pass')
+            print('did a warm-up step')
 
     # --- Profile each step individually (separate fwd/bwd) ---
     fwd_times = []
     bwd_times = []  # only filled if include_backward
     print('started real profiling')
 
-    for _ in range(config.profile_steps):
-        # prep
-        for p in lm.parameters():
-            if p.grad is not None:
-                p.grad.zero_()
-        x, y = random_batch(config, device)
+    # Coarse range to “zoom to” in Nsight Systems
+    with nvtx.range("PROFILED_STEPS"):
+        for _ in range(config.profile_steps):
+            # prep
+            for p in lm.parameters():
+                if p.grad is not None:
+                    p.grad.zero_()
+            x, y = random_batch(config, device)
 
-        # ----- forward timing -----
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-        t0 = time.perf_counter()
-
-        grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
-        with grad_ctx:
-            logits = lm(x)
-
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-        t1 = time.perf_counter()
-        fwd_times.append(t1 - t0)
-
-        # ----- backward timing (optional) -----
-        if config.include_backward:
-            loss = cross_entropy(inputs=logits, targets=y)
+            # ----- forward timing -----
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-            tb0 = time.perf_counter()
-            loss.backward()
+            t0 = time.perf_counter()
+
+            grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
+            with grad_ctx:
+                with nvtx.range("FORWARD (profile)"):
+                    logits = lm(x)
+
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-            tb1 = time.perf_counter()
-            bwd_times.append(tb1 - tb0)
+            t1 = time.perf_counter()
+            fwd_times.append(t1 - t0)
 
-        print('did a profile step')
+            # ----- backward timing (optional) -----
+            if config.include_backward:
+                loss = cross_entropy(inputs=logits, targets=y)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                tb0 = time.perf_counter()
+                with nvtx.range("BACKWARD (profile)"):
+                    loss.backward()
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                tb1 = time.perf_counter()
+                bwd_times.append(tb1 - tb0)
 
+            print('did a profile step')
+    
     # --- Stats helpers ---
     def mean_std(xs):
         if not xs:
             return None, None
         m = statistics.fmean(xs)
-        # population stdev if n==1 (0.0), sample stdev otherwise
         s = statistics.pstdev(xs) if len(xs) == 1 else statistics.stdev(xs)
         return m, s
 
@@ -196,7 +202,6 @@ def run_benchmark(config: BenchmarkConfig, out_file: str):
         out_lines.append(
             f"Backward time per step: {bwd_mean:.6f}s ± {bwd_std:.6f}s (n_steps={len(bwd_times)})"
         )
-        # Also include total step time for convenience
         total_times = [f + b for f, b in zip(fwd_times, bwd_times)]
         tot_mean, tot_std = mean_std(total_times)
         out_lines.append(
