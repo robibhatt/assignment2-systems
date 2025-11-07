@@ -1,5 +1,6 @@
 {
     "include": ["."],
+    "pythonPath": "/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/.venv/bin/python",
     "extraPaths": ["./cs336-basics"],
     "venvPath": ".",
     "venv": ".venv"
