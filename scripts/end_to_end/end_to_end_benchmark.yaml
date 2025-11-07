@@ -1,0 +1,14 @@
+model_config:
+  vocab_size: 10000
+  context_length: 256
+  d_model: 768
+  num_layers: 4
+  num_heads: 12
+  d_ff: 3072
+  rope_theta: 10000.0
+
+batch_size: 4
+seq_length: 256
+warmup_steps: 5
+profile_steps: 10
+include_backward: true

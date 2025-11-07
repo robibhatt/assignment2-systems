@@ -5,8 +5,12 @@ from cs336_basics.nn_utils import cross_entropy
 import torch
 from torch import Tensor
 from jaxtyping import Int
-import timeit
+import time
 import statistics
+from datetime import datetime
+import os
+import shutil
+
 
 @dataclass
 class ModelConfig:
@@ -52,31 +56,46 @@ class BenchmarkConfig:
         )
 
 
-def get_benchmark_config():
-    with open("cs336_systems/end_to_end_benchmark/end_to_end_benchmark.yaml") as f:
+def get_benchmark_config_and_output():
+    print('started the process')
+
+    # get the config
+    with open("scripts/end_to_end/end_to_end_benchmark.yaml") as f:
         data = yaml.safe_load(f)
     cfg = BenchmarkConfig(
         model_config=ModelConfig(**data["model_config"]),
         **{k: v for k, v in data.items() if k != "model_config"}
     )
-    return cfg
+    print('got the config')
+
+    # get the new experiment directory name
+    dir_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    os.mkdir("scripts/end_to_end/results/" + dir_name)
+    print('created results directory')
+
+    # copy the yaml file into it
+    shutil.copy("scripts/end_to_end/end_to_end_benchmark.yaml", "scripts/end_to_end/results/"+dir_name+'/end_to_end_benchmark.yaml')
+    print("copied the yaml file")
+
+    return cfg, "scripts/end_to_end/results/"+dir_name+'/results.out'
 
 
-def random_batch(config: BenchmarkConfig)->tuple[Int[Tensor, "batch_size context_length"], Int[Tensor, "batch_size context_length"]]:
+def random_batch(config: BenchmarkConfig, device:torch.device)->tuple[Int[Tensor, "batch_size context_length"], Int[Tensor, "batch_size context_length"]]:
     batch_size = config.batch_size
     vocab_size = config.model_config.vocab_size
     context_length = config.model_config.context_length
     xy = torch.randint(low=0,
                        high=vocab_size,
-                       size=(batch_size,context_length+1))
+                       size=(batch_size,context_length+1),
+                       device=device)
     x = xy[:, :-1]
     y = xy[:, 1:]
     return (x,y)
 
 
+def run_benchmark(config: BenchmarkConfig, out_file: str):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-def run_benchmark(config: BenchmarkConfig):
     lm = BasicsTransformerLM(
         vocab_size=config.model_config.vocab_size,
         context_length=config.model_config.context_length,
@@ -86,56 +105,111 @@ def run_benchmark(config: BenchmarkConfig):
         d_ff=config.model_config.d_ff,
         rope_theta=config.model_config.rope_theta,
     )
+    print('created model')
+
+    lm.to(device)
+    print('moved model to gpu')
 
     lm.train()
+    print('put model in training mode')
 
     # --- Warm-up ---
     for _ in range(config.warmup_steps):
+        print('started warm up step')
         for p in lm.parameters():
             if p.grad is not None:
                 p.grad.zero_()
-        x, y = random_batch(config)
-        logits = lm(x)
-        if config.include_backward:
-            loss = cross_entropy(inputs=logits, targets=y)
-            loss.backward()
+        print('zeroed out gradients')
+        x, y = random_batch(config, device)
+        print('grabbed a batch')
 
-    # --- Define a single timed step ---
-    def step():
+        # forward (build graph only if we plan to backprop)
+        grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
+        with grad_ctx:
+            _ = lm(x)
+        print('forward pass')
+
+        if config.include_backward:
+            loss = cross_entropy(inputs=_, targets=y)
+            loss.backward()
+            print('backward pass')
+        print('did a warm-up step')
+
+    # --- Profile each step individually (separate fwd/bwd) ---
+    fwd_times = []
+    bwd_times = []  # only filled if include_backward
+    print('started real profiling')
+
+    for _ in range(config.profile_steps):
+        # prep
         for p in lm.parameters():
             if p.grad is not None:
                 p.grad.zero_()
-        x, y = random_batch(config)
-        logits = lm(x)
+        x, y = random_batch(config, device)
+
+        # ----- forward timing -----
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        t0 = time.perf_counter()
+
+        grad_ctx = torch.enable_grad() if config.include_backward else torch.no_grad()
+        with grad_ctx:
+            logits = lm(x)
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        t1 = time.perf_counter()
+        fwd_times.append(t1 - t0)
+
+        # ----- backward timing (optional) -----
         if config.include_backward:
             loss = cross_entropy(inputs=logits, targets=y)
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            tb0 = time.perf_counter()
             loss.backward()
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            tb1 = time.perf_counter()
+            bwd_times.append(tb1 - tb0)
 
-    # --- CUDA sync helper ---
-    def timed_step():
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-        step()
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
+        print('did a profile step')
 
-    # --- Run repeats ---
-    repeats = 5  # or config.repeats if you have that in your config
-    results = timeit.repeat(timed_step, number=config.profile_steps, repeat=repeats)
+    # --- Stats helpers ---
+    def mean_std(xs):
+        if not xs:
+            return None, None
+        m = statistics.fmean(xs)
+        # population stdev if n==1 (0.0), sample stdev otherwise
+        s = statistics.pstdev(xs) if len(xs) == 1 else statistics.stdev(xs)
+        return m, s
 
-    # Convert to per-step
-    per_step_times = [t / config.profile_steps for t in results]
-    mean_time = statistics.mean(per_step_times)
-    std_time = statistics.stdev(per_step_times)
+    fwd_mean, fwd_std = mean_std(fwd_times)
+    bwd_mean, bwd_std = mean_std(bwd_times)
 
     # --- Write results ---
-    with open("cs336_systems/end_to_end_benchmark/benchmark_results.out", "w") as f:
-        f.write(str(config) + "\n")
-        f.write(f"Mean step time: {mean_time:.6f}s ± {std_time:.6f}s (n={repeats})\n")
+    out_lines = [
+        str(config),
+        f"Forward time per step: {fwd_mean:.6f}s ± {fwd_std:.6f}s (n_steps={len(fwd_times)})",
+    ]
+    if config.include_backward:
+        out_lines.append(
+            f"Backward time per step: {bwd_mean:.6f}s ± {bwd_std:.6f}s (n_steps={len(bwd_times)})"
+        )
+        # Also include total step time for convenience
+        total_times = [f + b for f, b in zip(fwd_times, bwd_times)]
+        tot_mean, tot_std = mean_std(total_times)
+        out_lines.append(
+            f"Total (fwd+bwd) per step: {tot_mean:.6f}s ± {tot_std:.6f}s (n_steps={len(total_times)})"
+        )
 
-    print(f"Mean step time: {mean_time:.6f}s ± {std_time:.6f}s (n={repeats})")
+    out = "\n".join(out_lines) + "\n"
+    with open(out_file, "w") as f:
+        f.write(out)
 
 
 if __name__ == "__main__":
-    cfg = get_benchmark_config()
-    run_benchmark(cfg)
+    print('we going hard')
+    cfg, out_file = get_benchmark_config_and_output()
+    print('obtained config')
+    run_benchmark(cfg, out_file)
