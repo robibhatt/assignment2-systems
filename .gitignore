@@ -2,8 +2,8 @@
 cs336-spring2024-assignment-2-submission.zip
 test_results.xml
 
-end_to_end/logs/*
-end_to_end/results/*
+scripts/end_to_end/logs/*
+scripts/end_to_end/results/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
