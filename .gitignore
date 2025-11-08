@@ -4,6 +4,7 @@ test_results.xml
 
 scripts/end_to_end/logs/*
 scripts/end_to_end/results/*
+scripts/end_to_end/tmp/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
