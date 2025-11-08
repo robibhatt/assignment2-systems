@@ -498,7 +498,7 @@ class CausalMultiHeadSelfAttention(nn.Module):
         )  # fmt: skip
 
         if token_positions is None:
-            token_positions = einx.rearrange("seq -> b... seq", torch.arange(sequence_length, device=x.device), b=[1] * len(b))
+            token_positions = einx.rearrange("seq -> b... seq", torch.arange(sequence_length, device=x.device), b=[1] * len(b)) # pyright: ignore
 
         # Duplicate token positions for each head
         token_positions = rearrange(token_positions, "... seq -> ... 1 seq")
@@ -510,10 +510,10 @@ class CausalMultiHeadSelfAttention(nn.Module):
         seq = torch.arange(sequence_length, device=x.device)
         qi = einx.rearrange('query -> b... 1 query 1', seq, b=[1] * len(b))
         kj = einx.rearrange('key   -> b... 1 1   key', seq, b=[1] * len(b))
-        causal_mask = qi >= kj  # (query, key)
+        causal_mask = qi >= kj  # (query, key) # pyright: ignore
 
         # Shape: (..., num_heads, sequence_length, d_k)
-        attn_output = scaled_dot_product_attention(K=K, Q=Q, V=V, mask=causal_mask)
+        attn_output = scaled_dot_product_attention(K=K, Q=Q, V=V, mask=causal_mask) # pyright: ignore
 
         # Concatenate the attention output from all heads.
         # (..., sequence_length, num_heads * d_v).
