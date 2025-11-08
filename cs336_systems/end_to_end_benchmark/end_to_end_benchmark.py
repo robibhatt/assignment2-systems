@@ -13,6 +13,18 @@ import shutil
 import torch.cuda.nvtx as nvtx
 
 
+def add_nvtx_hooks(lm):
+    def wrap_forward(m):
+        orig = m.forward
+        def wrapped(*args, **kwargs):
+            with nvtx.range(m.__class__.__name__):
+                return orig(*args, **kwargs)
+        m.forward = wrapped
+    for m in lm.modules():
+        if m != lm:
+            wrap_forward(m)
+
+
 @dataclass
 class ModelConfig:
     vocab_size: int
@@ -107,6 +119,9 @@ def run_benchmark(config: BenchmarkConfig, out_file: str):
         rope_theta=config.model_config.rope_theta
     )
     print('created model')
+
+    add_nvtx_hooks(lm)
+    print('added hooks')
 
     lm.to(device)
     print('moved model to gpu')
