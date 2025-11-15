@@ -1,0 +1,36 @@
+{
+  // ---------- Python Interpreter ----------
+  "python.defaultInterpreterPath": "/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/.venv/bin/python3",
+
+  // ---------- Pylance / IntelliSense ----------
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.useLibraryCodeForTypes": true,
+  "python.analysis.indexing": true,
+  "python.analysis.inlayHints.functionReturnTypes": false,
+  "python.analysis.inlayHints.variableTypes": false,
+
+  // 👇 Tell Pylance where to find your in-repo package
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/cs336-basics"
+  ],
+
+  // ---------- Optional tweaks ----------
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.completeFunctionParens": true,
+
+  // ---------- Workspace metadata ----------
+  "python-envs.pythonProjects": [],
+
+    // ---------- Ignore noisy folders ----------
+  "python.analysis.exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/.git",
+    "**/.vscode",
+    "${workspaceFolder}/cs336_basics",
+    "${workspaceFolder}/tests"
+  ]
+}
