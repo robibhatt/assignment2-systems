@@ -7,7 +7,8 @@ from typing import Callable
 # problem size
 n_heads = 16
 d_head = 64
-sequence_length = 16384
+#sequence_length = 16384
+sequence_length = 128
 
 # q, k, v with grads, on GPU, BF16
 q, k, v = torch.randn(
@@ -16,13 +17,12 @@ q, k, v = torch.randn(
 ).unbind(0)
 
 # compile the custom autograd Function's .apply
-flash: Callable[..., torch.Tensor]
 flash = torch.compile(FlashAttention2.apply)
 
 
 def flash_forward_backward():
     o = flash(q, k, v, True)  # causal=True
-    loss = o.sum()
+    loss = o.sum() # type: ignore[attr-defined]
     loss.backward()
 
 results = triton.testing.do_bench(flash_forward_backward, warmup=100, rep=500)
