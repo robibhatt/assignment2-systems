@@ -6,6 +6,8 @@ scripts/end_to_end/logs/*
 scripts/end_to_end/results/*
 scripts/end_to_end/tmp/*
 
+.vscode/settings.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,98 @@
+JobId=2192245 JobName=ibor_train_bpe
+   UserId=luj210(5022) GroupId=luxburg(4018) MCS_label=N/A
+   Priority=24540 Nice=0 Account=luxburg QOS=normal
+   JobState=RUNNING Reason=None Dependency=(null)
+   Requeue=1 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
+   RunTime=00:00:00 TimeLimit=00:10:00 TimeMin=N/A
+   SubmitTime=2025-11-15T19:30:19 EligibleTime=2025-11-15T19:30:19
+   AccrueTime=2025-11-15T19:30:19
+   StartTime=2025-11-15T19:30:19 EndTime=2025-11-15T19:40:19 Deadline=N/A
+   PreemptEligibleTime=2025-11-15T19:31:19 PreemptTime=None
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-11-15T19:30:19 Scheduler=Main
+   Partition=2080-galvani AllocNode:Sid=galvani-slurmctl:1366751
+   ReqNodeList=(null) ExcNodeList=(null)
+   NodeList=galvani-cn104
+   BatchHost=galvani-cn104
+   NumNodes=1 NumCPUs=2 NumTasks=1 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
+   ReqTRES=cpu=1,mem=80G,node=1,billing=4,gres/gpu=1
+   AllocTRES=cpu=2,mem=80G,node=1,billing=4,gres/gpu=1,gres/gpu:rtx2080ti=1
+   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
+   MinCPUsNode=1 MinMemoryNode=80G MinTmpDiskNode=0
+   Features=(null) DelayBoot=00:00:00
+   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   Command=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/run_tests.sh
+   WorkDir=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
+   StdErr=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/logs/tests.err
+   StdIn=/dev/null
+   StdOut=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/logs/tests.out
+   Power=
+   TresPerNode=gres:gpu:1
+   
+
+/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
+Sat Nov 15 19:30:19 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.95.05              Driver Version: 580.95.05      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 2080 Ti     On  |   00000000:3D:00.0 Off |                  N/A |
+|  0%   38C    P8             21W /  250W |       1MiB /  11264MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-8.4.1, pluggy-1.6.0
+rootdir: /mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
+configfile: pyproject.toml
+plugins: jaxtyping-0.3.2
+0.030835885554552078
+collected 16 items / 15 deselected / 1 selected
+
+tests/test_attention.py::test_flash_forward_pass_pytorch FAILED
+
+=================================== FAILURES ===================================
+_______________________ test_flash_forward_pass_pytorch ________________________
+
+    def test_flash_forward_pass_pytorch():
+>       _test_flash_forward_pass(get_flashattention_autograd_function_pytorch().apply)
+
+tests/test_attention.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+impl = <bound method Function.apply of <class 'cs336_systems.flash_attention.FlashAttention2'>>
+device = 'cpu', is_causal = False
+
+    def _test_flash_forward_pass(impl, device="cpu", is_causal=False):
+        q, k, v, _do = _make_attn_inputs(device)
+        o = impl(q, k, v, is_causal)
+    
+        # Extract L from the saved tensors
+        assert o.grad_fn.saved_tensors is not None, "No saved tensors found in the output tensor. Make sure your autograd forward is saving them using ctx.save_for_backward."
+        maybe_ls = [t for t in o.grad_fn.saved_tensors if t.shape == (q.shape[0], q.shape[1])]
+    
+>       assert len(maybe_ls) == 1, f"Expected one tensor of shape {q.shape[0], q.shape[1]} in saved tensors, but found {len(maybe_ls)}. The tests require you to save exactly one tensor of this shape, corresponding to the log-sum-exp of the attention scores."
+E       AssertionError: Expected one tensor of shape (4, 128) in saved tensors, but found 0. The tests require you to save exactly one tensor of this shape, corresponding to the log-sum-exp of the attention scores.
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_attention.py:51: AssertionError
+=============================== warnings summary ===============================
+.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948
+.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948
+  /mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948: UserWarning: NVIDIA GeForce RTX 2080 Ti does not support bfloat16 compilation natively, skipping
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_attention.py::test_flash_forward_pass_pytorch - AssertionEr...
+================ 1 failed, 15 deselected, 2 warnings in 11.94s =================
