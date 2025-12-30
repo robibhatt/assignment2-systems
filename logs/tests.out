@@ -1,45 +1,45 @@
-JobId=2192245 JobName=ibor_train_bpe
+JobId=2239747 JobName=ibor_train_bpe
    UserId=luj210(5022) GroupId=luxburg(4018) MCS_label=N/A
-   Priority=24540 Nice=0 Account=luxburg QOS=normal
+   Priority=69308 Nice=0 Account=luxburg QOS=normal
    JobState=RUNNING Reason=None Dependency=(null)
    Requeue=1 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0
    RunTime=00:00:00 TimeLimit=00:10:00 TimeMin=N/A
-   SubmitTime=2025-11-15T19:30:19 EligibleTime=2025-11-15T19:30:19
-   AccrueTime=2025-11-15T19:30:19
-   StartTime=2025-11-15T19:30:19 EndTime=2025-11-15T19:40:19 Deadline=N/A
-   PreemptEligibleTime=2025-11-15T19:31:19 PreemptTime=None
-   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-11-15T19:30:19 Scheduler=Main
-   Partition=2080-galvani AllocNode:Sid=galvani-slurmctl:1366751
+   SubmitTime=2025-12-09T23:23:41 EligibleTime=2025-12-09T23:23:41
+   AccrueTime=2025-12-09T23:23:41
+   StartTime=2025-12-10T00:14:49 EndTime=2025-12-10T00:24:49 Deadline=N/A
+   PreemptEligibleTime=2025-12-10T00:15:49 PreemptTime=None
+   SuspendTime=None SecsPreSuspend=0 LastSchedEval=2025-12-10T00:14:49 Scheduler=Main
+   Partition=2080-galvani AllocNode:Sid=galvani-login:4170747
    ReqNodeList=(null) ExcNodeList=(null)
-   NodeList=galvani-cn104
-   BatchHost=galvani-cn104
+   NodeList=galvani-cn118
+   BatchHost=galvani-cn118
    NumNodes=1 NumCPUs=2 NumTasks=1 CPUs/Task=1 ReqB:S:C:T=0:0:*:*
    ReqTRES=cpu=1,mem=80G,node=1,billing=4,gres/gpu=1
    AllocTRES=cpu=2,mem=80G,node=1,billing=4,gres/gpu=1,gres/gpu:rtx2080ti=1
    Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*
    MinCPUsNode=1 MinMemoryNode=80G MinTmpDiskNode=0
    Features=(null) DelayBoot=00:00:00
-   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)
+   OverSubscribe=OK Contiguous=0 Licenses=(null) LicensesAlloc=(null) Network=(null)
    Command=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/run_tests.sh
    WorkDir=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
    StdErr=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/logs/tests.err
    StdIn=/dev/null
    StdOut=/mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/logs/tests.out
-   Power=
-   TresPerNode=gres:gpu:1
+   TresPerNode=gres/gpu:1
+   TresPerTask=cpu=1
    
 
 /mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
-Sat Nov 15 19:30:19 2025       
+Wed Dec 10 00:14:49 2025       
 +-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 580.95.05              Driver Version: 580.95.05      CUDA Version: 13.0     |
+| NVIDIA-SMI 580.105.08             Driver Version: 580.105.08     CUDA Version: 13.0     |
 +-----------------------------------------+------------------------+----------------------+
 | GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
 | Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
 |                                         |                        |               MIG M. |
 |=========================================+========================+======================|
-|   0  NVIDIA GeForce RTX 2080 Ti     On  |   00000000:3D:00.0 Off |                  N/A |
-|  0%   38C    P8             21W /  250W |       1MiB /  11264MiB |      0%      Default |
+|   0  NVIDIA GeForce RTX 2080 Ti     On  |   00000000:DA:00.0 Off |                  N/A |
+|  0%   80C    P0             79W /  250W |       1MiB /  11264MiB |      3%      Default |
 |                                         |                        |                  N/A |
 +-----------------------------------------+------------------------+----------------------+
 
@@ -55,7 +55,6 @@ platform linux -- Python 3.11.2, pytest-8.4.1, pluggy-1.6.0
 rootdir: /mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems
 configfile: pyproject.toml
 plugins: jaxtyping-0.3.2
-0.030835885554552078
 collected 16 items / 15 deselected / 1 selected
 
 tests/test_attention.py::test_flash_forward_pass_pytorch FAILED
@@ -86,13 +85,6 @@ E       assert 0 == 1
 E        +  where 0 = len([])
 
 tests/test_attention.py:51: AssertionError
-=============================== warnings summary ===============================
-.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948
-.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948
-  /mnt/lustre/work/luxburg/luj210/projects/stanford_class/assignment2-systems/.venv/lib64/python3.11/site-packages/torch/_inductor/compile_fx.py:1948: UserWarning: NVIDIA GeForce RTX 2080 Ti does not support bfloat16 compilation natively, skipping
-    warnings.warn(
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =========================== short test summary info ============================
 FAILED tests/test_attention.py::test_flash_forward_pass_pytorch - AssertionEr...
-================ 1 failed, 15 deselected, 2 warnings in 11.94s =================
+======================= 1 failed, 15 deselected in 5.00s =======================
